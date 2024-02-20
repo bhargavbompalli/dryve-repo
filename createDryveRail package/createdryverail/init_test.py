@@ -2,9 +2,9 @@ import dryveCode
 import createdryverail
 
 def main():
-    dryveCode.establishConnection()
-    dryveCode.startProcedure()
-    # dryveCode.dryveInit()
+    #dryveCode.establishConnection()
+    #dryveCode.startProcedure()
+    dryveCode.dryveInit()
     #dryveCode.homing()
     print("Initialization started...")
     #dryveCode.targetPosition(500)
