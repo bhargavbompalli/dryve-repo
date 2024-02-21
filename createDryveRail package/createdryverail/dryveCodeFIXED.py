@@ -4,10 +4,10 @@ import socket
 import time
 read = 0
 write = 1
-profileAcceleration = 300
-profileDeceleration = 300
-HOST = "172.31.1.101"
-PORT = 503
+profileAcceleration = 150
+profileDeceleration = 150
+HOST = "192.168.12.207"
+PORT = 502
 
 
 
@@ -119,15 +119,16 @@ def startProcedure():
     setOpEn()
     # setMode(1)
     # # set velocity and acceleration of profile
-    # sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x81, 0, 0, 0, 0, 2, 0x2c, 0x1]))
+    sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x81, 0, 0, 0, 0, 2, 0x2c, 0x1]))
     # # Profile acceleration set below
-    # sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x83, 0, 0, 0, 0, 2, extractBytes(profileAcceleration)[0], extractBytes(profileAcceleration)[1]]))
+    sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x83, 0, 0, 0, 0, 2, extractBytes(profileAcceleration)[0], extractBytes(profileAcceleration)[1]]))
     # # Profile deacceleration set below
-    # sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x84, 0, 0, 0, 0, 2, extractBytes(profileDeceleration)[0], extractBytes(profileDeceleration)[1]]))
+    sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x84, 0, 0, 0, 0, 2, extractBytes(profileDeceleration)[0], extractBytes(profileDeceleration)[1]]))
 
 
 def targetPosition(target, rw=1):
     setMode(1)
+    print("target position: {}", target)
 
     # Check if target datavalue is within range
     if target > 0xffff:
@@ -180,13 +181,18 @@ def homing():
     setHomingMethodLSNArray = bytearray(setHomingMethodLSN)
     sendCommand(setHomingMethodLSNArray)
 
-    # Set homing speeds 6099h
-    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 0, 0, 0, 0, 1, 200]))
-    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 1, 0, 0, 0, 1, 200]))
-    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 2, 0, 0, 0, 1, 200]))
+    # Set homing speeds 6099h (See p163 in the manual)
+    # 6099h sub0 Number of Entries
+    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 0, 0, 0, 0, 1, 2]))
+    # 6099h sub1 Search Velocity for Switch (4000)
+    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 1, 0, 0, 0, 1, 6]))
+    # 6099h sub2 Search Velocity for Zero (2000)
+    sendCommand(bytearray([0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x99, 2, 0, 0, 0, 1, 2]))
+    #sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 96, 153, 2, 0, 0, 0, 2, 112, 23])) 
 
     # Set acceleration 609Ah
     sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x9a, 0, 0, 0, 0, 2, 0xe8, 0x3]))
+    #sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 96, 154, 0, 0, 0, 0, 2, 80, 195]))
 
     time.sleep(0.1)
 
@@ -195,9 +201,10 @@ def homing():
     sendCommand(bytearray([0, 0, 0, 0, 0, 15, 0, 43, 13, 1, 0, 0, 0x60, 0x40, 0, 0, 0, 0, 2, 0x1f, 0]))
 
 
-    while (sendCommand(statusArray) != [0, 0, 0, 0, 0, 15, 0, 43, 13, 0, 0, 0, 0x60, 0x41, 0, 0, 0, 0, 2, 39, 22]):
+    while ((resp := sendCommand(statusArray)) != [0, 0, 0, 0, 0, 15, 0, 43, 13, 0, 0, 0, 0x60, 0x41, 0, 0, 0, 0, 2, 39, 22]):
         # 1 second delay
-        time.sleep(0.1)
+        print("homeing resp", resp)
+        time.sleep(2)
 
     print("Homing complete")
 
@@ -232,11 +239,18 @@ def profileVelocity(target):
             sendCommand(bytearray(
                 [0, 0, 0, 0, 0, 14, 0, 43, 13, 1, 0, 0, 0x60, 0x81, 0, 0, 0, 0, 1, target]))
 
+def setUnitPosition(movement_type, exponent):
+    print("set unit position")
+    sendCommand(bytearray(
+    [0, 0, 0, 0, 0, 17, 0, 43, 13, 1, 0, 0, 96, 168, 0, 0, 0, 0, 4, exponent, movement_type, 0, 0]))
+    
+
+
 
 def dryveInit():
     establishConnection()
     startProcedure()
-    # homing()
-    # setMode(1)
+    #homing()
+    setMode(1)
 
 # Never input target position lower than 1. It will trigger the limit switch.
